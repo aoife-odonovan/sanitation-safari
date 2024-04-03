@@ -1,0 +1,204 @@
+---
+title: "Sanitation Safari"
+subtitle: "An Exploration of Basic Sanitation Services around the World"
+author: "Aoife O'Donovan"
+date: "2024-04-03"
+format: 
+  html :
+    theme: journal 
+    backgroundcolor: lightblue
+    toc: true
+execute: 
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+# libraries
+library(tidyverse)
+library(plotly)
+
+# data
+data_right_3_ <- read_csv("data_right_3 .csv")
+unicef_indicator_1 <- read_csv("unicef_indicator_1.csv")
+unicef_metadata <- read_csv("unicef_metadata.csv")
+
+# transformations
+data_join <- unicef_metadata %>%
+  full_join(data_right_3_, by = join_by(country)) %>%
+  full_join(unicef_indicator_1, by = join_by(country, year == time_period))
+```
+
+## Introduction
+This report reviews data obtained from **Unicef** and looks at the relationship between *basic sanitation services in schools worldwide* and the country’s corresponding *life expectancy*. Basic sanitation services mean private and functioning toilets that flush to proper sewer systems, septic tanks or pit latrines. Basic sanitation is **vital** for human development and is important for protecting against diseases which, in many cases, lead to early death. According to Unicef, <span style="font-size: 24px;">***539 million children***</span> are affected by a lack of basic sanitation services in schools. Follow this report to explore which countries struggle the most with lack of basic sanitation and how it impacts on their life expectancy.
+
+## What does life expectancy look like around the world?
+### Maps
+```{r}
+#| fig-cap: "Countries marked in red have a lower life expectancy whilst green countries have a higher life expectancy."
+
+map_world <- map_data("world")
+
+data_join_2000 <- data_join %>%
+  filter(year == 2000)
+
+map_data_join_2000 <- full_join(data_join_2000, map_world, by = join_by(country == region))
+
+ggplot(map_data_join_2000) +
+  aes(x = long, y = lat, group = group, fill = lifeExp) +
+  geom_polygon() +
+  scale_fill_gradient(low = "red", high = "green")+
+  labs(
+    x = "Longitude",
+    y = "Latitude",
+    title = "Life Expectancy in 2000",
+    fill = "Age"
+  ) +
+  theme_bw() +
+  theme(text = element_text(family = "serif"))
+
+data_join_2021 <- data_join %>%
+  filter(year == 2021)
+
+map_data_join_2021 <- full_join(data_join_2021, map_world, by = join_by(country == region))
+
+ggplot(map_data_join_2021) +
+  aes(x = long, y = lat, group = group, fill = lifeExp) +
+  geom_polygon() +
+  scale_fill_gradient(low = "red", high = "green") +
+  labs(
+    x = "Longitude",
+    y = "Latitude",
+    title = "Life Expectancy in 2021",
+    fill = "Age"
+  ) +
+  theme_bw() +
+  theme(text = element_text(family = "serif"))
+
+
+```
+
+Comparing the two maps, it is clear that the average life expectancy has ***increased*** across the world during the years **2000** and **2021**. We would expect to see this as *huge technological advances* in the last two decades have greatly aided human development. However, it is quite noticeable that <span style="font-size: 24px;">**Africa**</span> has the lowest life expectancy in both of the years, indicated by the colour red. We must ask ourselves why this is the case. Look at the time series below to get an in-depth view of the evolution of life expectancy.
+
+## Life expectancy in more detail
+### Time Series
+```{r}
+#| fig-cap: "Use the interactive legend to focus in on a continent of your choice. Hover over the time series to gain more insight into individual countries. The NA variable is subject to lack of information in the dataset which matches country to continent."
+timeseries_plot_1 <- data_join %>%
+  ggplot() +
+  aes(year, lifeExp, group = country, color = continent) +
+  geom_line() +
+  labs(
+    x = "Year",
+    y = "Life Expectancy (years)",
+    title = "Evolution of Life Expectancy"
+  ) +
+  theme_bw() +
+  theme(text = element_text(family = "serif"))
+
+ggplotly(timeseries_plot_1)
+```
+
+At first glance of the time series, it is clear that, overall, <span style="font-size: 24px;">**Europe**</span> and <span style="font-size: 24px;">**Oceania**</span> have the *highest and most stable* life expectancy. <span style="font-size: 24px;">**Africa**</span> has the *lowest*, confirming our previous conclusions based on the maps above. One of the main reasons for this may be the lack of developed health services across the continent due to: 
+
+- insufficient funding 
+- corruption
+- overpopulation
+
+You may notice a huge drop in the <span style="font-size: 24px;">**Americas**</span> in **2010**. This major decline is a result of the ***devastating earthquake that occurred in Haiti*** and can be considered an outlier. Next, we are going to look at basic sanitation services in schools to see if they have any impact on life expectancy.
+
+## Which continents have the most basic sanitation services?
+### Bar Chart
+```{r}
+#| fig-cap: "The NA variable is subject to lack of information in the dataset which matches country to continent."
+bar_chart_1 <- data_join
+
+years_to_show <- c(2000, 2021)
+
+filtered_data <- bar_chart_1[bar_chart_1$year %in% years_to_show, ]
+
+filtered_data %>%
+  group_by(continent, year) %>%
+  summarise(m_obs_value = mean(obs_value, na.rm = TRUE)) %>%
+  ggplot() +
+  aes(reorder(continent, m_obs_value), m_obs_value, fill = continent) +
+  geom_col() +
+  facet_wrap(~ year) +
+  labs(
+    x = "",
+    y = "Schools with basic sanitation services (%)",
+    title = "Proportion of Schools with Basic Sanitation Services"
+  ) +
+  theme_bw() +
+  theme(text = element_text(family = "serif"),
+  axis.text.x = element_blank()      
+  )
+```
+
+By looking at this bar chart, it is easy to determine which continent is struggling the most with basic sanitation services in schools. <span style="font-size: 24px;">**Oceania**</span> and <span style="font-size: 24px;">**Europe**</span> have the best performance, with practically all schools in every country providing these basic services. In <span style="font-size: 24px;">**Asia**</span>, Afghanistan has a particularly low proportion of these services in schools, which is interesting as they would be considered to have a *low life expectancy* as displayed in the map above. However, the continent that struggles the most with basic sanitation services is <span style="font-size: 24px;">**Africa**</span>. Considering they have the lowest life expectancy overall; ***we must ask if a lack of basic sanitation services has a direct impact on a country's life expectancy***.
+
+## Examination of basic sanitation services and their relationships
+### Scatter Plots
+```{r}
+#| fig-cap: "The NA variable is subject to lack of information in the dataset which matches country to continent."
+scatter_plot_1 <- data_join %>%
+  filter(year == 2021)
+  
+ggplot(scatter_plot_1) +
+  aes(gdp, obs_value, color = continent, size = pop) +
+  geom_point(alpha = 0.75) +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +
+  scale_x_continuous(limits = c(0,100000)) +
+  labs(
+    x = "GDP per capita in USD",
+    y = "Schools with basic sanitation services (%)",
+    title = "GDP per capita and Proportion of Schools with Basic Sanitation Services - 2021"
+  ) +
+  guides(size = "none") +
+  theme_bw() +
+  theme(text = element_text(family = "serif"))
+```
+
+When examining the first scatterplot, there *doesn’t appear to be a very strong relationship between the GDP per capita of a country and its basic sanitation services*. There are countries with a low GDP but a high proportion of these services, particularly in <span style="font-size: 24px;">**Europe**</span> and <span style="font-size: 24px;">**Asia**</span>. It is clear that <span style="font-size: 24px;">**African countries**</span> have a lower GDP than others, as the points hug the Y-axis. This is understandable as a lot of African countries are still developing. However, based on this graph, ***it appears that the GDP of a country does not have a majorly strong impact on basic sanitation services***.
+
+```{r}
+#| fig-cap: "The NA variable is subject to lack of information in the dataset which matches country to continent."
+scatter_plot_2 <- data_join
+
+years_to_show <- c(2005, 2010, 2015, 2020, 2021)
+
+filtered_data <- scatter_plot_2[scatter_plot_2$year %in% years_to_show, ]
+
+ggplot(filtered_data) +
+  aes(lifeExp, obs_value, color = continent, size = pop) +
+  geom_point(alpha = 0.75) +
+  geom_smooth(method = "lm", se = FALSE, color = "black") +
+  facet_wrap(~ year, nrow = 1) +
+  labs(
+    x = "Life Expectancy (years)",
+    y = "Schools with basic sanitation services (%)",
+    title = "Relationship between Life Expectancy and Proportion of Schools with Basic Sanitation Services"
+  ) +
+  guides(size = "none") +
+  theme_bw() +
+  theme(text = element_text(family = "serif"))
+```
+
+Looking at the second scatterplot for the relationship between life expectancy and basic sanitation services, it’s clear that *the more schools that have these services, the higher the life expectancy of that country*. It’s easy to spot that <span style="font-size: 24px;">**Europe**</span> has the highest proportion of these basic services. <span style="font-size: 24px;">**Asia**</span> varies the most, with some countries performing well and others not so much. However, in line with the previous data, <span style="font-size: 24px;">**Africa**</span> is struggling the most. This scatterplot shows that there is ***quite a strong relationship between life expectancy and basic sanitation services in schools***.
+
+## Conclusion
+After examining the data and visualisations, ***it is clear that countries with a higher proportion of basic sanitation services in schools have a higher life expectancy***. The ranking of continents in this regard are:
+
+1. Oceania
+2. Europe
+3. Asia
+4. Americas
+5. Africa
+
+In today’s world, *every individual should have access to basic sanitation services* and these visualisations highlight the striking problem Africa is facing. It is worrying that children spend the majority of their day in school and don’t have access to these basic facilities.  Moving forward, it is imperative that the world unites and aids countries facing this issue. After all, <span style="font-size: 24px;">***“there is beauty and power in unity. We must be united in heart and mind. One world, one people”***</span> (Lailah Gifty Akita).
+![ ](Unicef.png)
+
